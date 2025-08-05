@@ -4,4 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+memchr = "2.7.5"
 memmap2 = "0.9.7"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = 3
