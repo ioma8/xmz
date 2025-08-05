@@ -1,4 +1,4 @@
-use crate::parser::{stream_xml, Token};
+use crate::parser::{stream_xml, Token, Continue};
 
 const MAX_DEPTH: usize = 32;
 const MAX_UNIQUE_TAGS: usize = 128;
@@ -52,6 +52,7 @@ pub fn print_stats(xml: &str) {
             }
             Token::Text(_) => {}
         }
+        Continue(())
     });
 
     let elapsed = start_time.elapsed();

@@ -1,4 +1,4 @@
-use crate::parser::{stream_xml, Token};
+use crate::parser::{stream_xml, Token, Break, Continue};
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent},
     execute,
@@ -12,6 +12,7 @@ use ratatui::{
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, stdout, Stdout};
+
 
 struct Level {
     tag: Option<String>,
@@ -39,21 +40,17 @@ fn get_children_cached(
     let mut depth = 0;
     let mut inside = parent_tag.is_none();
     let mut parent_matched = false;
-    let mut done = false;
     let mut last_tag: Option<String> = None;
     let mut last_text: Option<String> = None;
     let mut collecting_text = false;
     stream_xml(xml, |token| {
-        if done {
-            return;
-        }
         match token {
             Token::StartTag(name) => {
                 if let Some(parent) = parent_tag {
                     if !inside && name == parent {
                         inside = true;
                         parent_matched = true;
-                        return;
+                        return Continue(());
                     }
                     if inside {
                         if depth == 0 {
@@ -79,8 +76,7 @@ fn get_children_cached(
                             depth -= 1;
                         }
                         if depth == 0 && name == parent && parent_matched {
-                            done = true;
-                            return;
+                            return Break(());
                         }
                         if depth == 0 && collecting_text {
                             if let Some(tag) = last_tag.take() {
@@ -114,6 +110,7 @@ fn get_children_cached(
                 }
             }
         }
+        Continue(())
     });
     cache.insert(key, children.clone());
     children
@@ -137,10 +134,10 @@ fn get_root_tag(xml: &str) -> Option<String> {
     let mut root_tag = None;
     stream_xml(xml, |token| {
         if let Token::StartTag(name) = token {
-            if root_tag.is_none() {
-                root_tag = Some(name.to_string());
-            }
+            root_tag = Some(name.to_string());
+            return Break(());
         }
+        Continue(())
     });
     root_tag
 }
