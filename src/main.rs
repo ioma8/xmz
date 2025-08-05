@@ -422,38 +422,50 @@ fn run_tui() -> io::Result<()> {
                     ),
                 ]))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Blue));
-            let items: Vec<ListItem> = current
-                .children
-                .iter()
-                .map(|(tag, text)| {
-                    if let Some(text) = text {
-                        ListItem::new(Line::from(vec![
-                            Span::styled(
-                                tag,
-                                Style::default()
-                                    .fg(Color::Magenta)
-                                    .add_modifier(Modifier::BOLD),
-                            ),
-                            Span::raw("  "),
-                            Span::styled(text, Style::default().fg(Color::Green)),
-                        ]))
-                    } else {
-                        ListItem::new(Span::styled(tag, Style::default().fg(Color::Magenta)))
-                    }
-                })
-                .collect();
+                .border_style(Style::default().fg(Color::Gray))
+                .bg(Color::Rgb(30, 30, 40));
+
+            // Add a shadow effect (draw a faint block behind the main block)
+            let shadow = Block::default()
+                .borders(Borders::NONE)
+                .bg(Color::Rgb(20, 20, 28));
+            let shadow_rect = Rect {
+                x: 2,
+                y: 2,
+                width: size.width.saturating_sub(4),
+                height: size.height.saturating_sub(4),
+            };
+            f.render_widget(shadow, shadow_rect);
+
+            let items: Vec<ListItem> = current.children.iter().map(|(tag, text)| {
+                if let Some(text) = text {
+                    ListItem::new(Line::from(vec![
+                        Span::styled(
+                            tag,
+                            Style::default()
+                                .fg(Color::Rgb(255, 180, 255))
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::raw("  "),
+                        Span::styled(text, Style::default().fg(Color::Rgb(120, 255, 120)).add_modifier(Modifier::ITALIC)),
+                    ]))
+                } else {
+                    ListItem::new(Span::styled(tag, Style::default().fg(Color::Rgb(200, 200, 255)).add_modifier(Modifier::BOLD)))
+                }
+            }).collect();
             let list = List::new(items)
                 .block(block)
                 .highlight_symbol("→ ")
                 .highlight_style(
                     Style::default()
                         .fg(Color::Yellow)
+                        .bg(Color::Rgb(40, 40, 60))
                         .add_modifier(Modifier::BOLD | Modifier::REVERSED),
-                );
+                )
+                .bg(Color::Rgb(30, 30, 40));
             f.render_stateful_widget(list, size, &mut list_state);
             let help = Paragraph::new(Span::styled(
-                "Up/Down: Move, Enter: In, Backspace/Left: Up, q: Quit",
+                "Up/Down: Move, Enter/Right: In, Backspace/Left: Up, q: Quit",
                 Style::default()
                     .fg(Color::Gray)
                     .add_modifier(Modifier::ITALIC),
