@@ -390,33 +390,75 @@ fn run_tui() -> io::Result<()> {
         list_state.select(Some(selected));
         terminal.draw(|f| {
             let size = f.size();
+            let n_children = current.children.len();
             let title = match &current.tag {
-                Some(t) => format!("Children of <{}>", t),
-                None => "Root elements".to_string(),
+                Some(t) => format!(
+                    "<{}>  [{} child{}]",
+                    t,
+                    n_children,
+                    if n_children == 1 { "" } else { "ren" }
+                ),
+                None => format!(
+                    "Root element  [{} child{}]",
+                    n_children,
+                    if n_children == 1 { "" } else { "ren" }
+                ),
             };
-            let block = Block::default().title(title).borders(Borders::ALL);
+            let block = Block::default()
+                .title(Line::from(vec![
+                    Span::styled(
+                        " XML Tree Navigator ",
+                        Style::default()
+                            .fg(Color::White)
+                            .bg(Color::Blue)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw("  "),
+                    Span::styled(
+                        title,
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ]))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Blue));
             let items: Vec<ListItem> = current
                 .children
                 .iter()
                 .map(|(tag, text)| {
                     if let Some(text) = text {
                         ListItem::new(Line::from(vec![
-                            Span::raw(tag),
+                            Span::styled(
+                                tag,
+                                Style::default()
+                                    .fg(Color::Magenta)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
                             Span::raw("  "),
                             Span::styled(text, Style::default().fg(Color::Green)),
                         ]))
                     } else {
-                        ListItem::new(tag.as_str())
+                        ListItem::new(Span::styled(tag, Style::default().fg(Color::Magenta)))
                     }
                 })
                 .collect();
             let list = List::new(items)
                 .block(block)
                 .highlight_symbol("→ ")
-                .highlight_style(Style::default().fg(Color::Yellow));
+                .highlight_style(
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD | Modifier::REVERSED),
+                );
             f.render_stateful_widget(list, size, &mut list_state);
-            let help = Paragraph::new("Up/Down: Move, Enter: In, Backspace/Left: Up, q: Quit")
-                .block(Block::default().borders(Borders::NONE));
+            let help = Paragraph::new(Span::styled(
+                "Up/Down: Move, Enter: In, Backspace/Left: Up, q: Quit",
+                Style::default()
+                    .fg(Color::Gray)
+                    .add_modifier(Modifier::ITALIC),
+            ))
+            .block(Block::default().borders(Borders::NONE));
             f.render_widget(
                 help,
                 Rect {
@@ -452,7 +494,7 @@ fn run_tui() -> io::Result<()> {
                             }
                             list_state.select(Some(selected));
                         }
-                        KeyCode::Enter => {
+                        KeyCode::Enter | KeyCode::Right => {
                             if let Some((tag, _)) = current.children.get(selected) {
                                 let children =
                                     get_children_cached(xml, Some(tag), &mut children_cache);
