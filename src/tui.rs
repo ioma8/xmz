@@ -4,13 +4,11 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use memmap2::Mmap;
 use ratatui::{
     prelude::*,
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Scrollbar, ScrollbarState},
 };
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::{self, stdout, Stdout};
 
 struct Level {
@@ -348,12 +346,8 @@ fn handle_input(key_event: KeyEvent, state: &mut TuiState) {
     }
 }
 
-pub fn run_tui() -> io::Result<()> {
-    let file = File::open("psd7003.xml")?;
-    let mmap = unsafe { Mmap::map(&file)? };
-    let xml = std::str::from_utf8(&mmap).expect("Invalid UTF-8 XML").to_string();
-
-    let root_tag = get_root_tag(&xml);
+pub fn run_tui(xml: &str) -> io::Result<()> {
+    let root_tag = get_root_tag(xml);
     let children = match &root_tag {
         Some(tag) => vec![(tag.clone(), None)],
         None => vec![],
@@ -368,7 +362,7 @@ pub fn run_tui() -> io::Result<()> {
         selected: 0,
         list_state: ListState::default(),
         children_cache: HashMap::new(),
-        xml,
+        xml: xml.to_string(),
         scrollbar_state: ScrollbarState::default(),
         items_len,
     };
