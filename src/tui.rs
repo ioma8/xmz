@@ -7,12 +7,11 @@ use crossterm::{
 use memmap2::Mmap;
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Scrollbar, ScrollbarState},
 };
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, stdout, Stdout};
-
 
 struct Level {
     tag: Option<String>,
@@ -25,6 +24,8 @@ struct TuiState {
     list_state: ListState,
     children_cache: HashMap<Option<String>, Vec<(String, Option<String>)>>,
     xml: String,
+    scrollbar_state: ScrollbarState,
+    items_len: usize,
 }
 
 fn get_children_cached(
@@ -223,21 +224,45 @@ fn create_list<'a>(current: &'a Level, block: Block<'a>) -> List<'a> {
 }
 
 fn create_help_paragraph() -> Paragraph<'static> {
-    Paragraph::new(Span::styled(
-        "Up/Down: Move, Enter/Right: In, Backspace/Left: Up, q: Quit",
-        Style::default()
-            .fg(Color::Gray)
-            .add_modifier(Modifier::ITALIC),
-    ))
-    .block(Block::default().borders(Borders::NONE))
+    let key_style = Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+    let help_spans = vec![
+        Span::raw("Use "),
+        Span::styled("↑/↓", key_style),
+        Span::raw(" to move, "),
+        Span::styled("Enter/→", key_style),
+        Span::raw(" to go in, "),
+        Span::styled("Backspace/←", key_style),
+        Span::raw(" to go up, "),
+        Span::styled("q", key_style),
+        Span::raw(" to quit."),
+    ];
+    let help_line = Line::from(help_spans).alignment(Alignment::Center);
+
+    Paragraph::new(help_line)
+        .block(Block::default().borders(Borders::NONE))
 }
 
 fn draw_ui(f: &mut Frame, state: &mut TuiState) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(1)].as_ref())
+        .split(f.size());
+
+    let main_area = chunks[0];
+    let help_area = chunks[1];
+
+    let main_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(0), Constraint::Length(1)].as_ref())
+        .split(main_area);
+
+    let list_area = main_chunks[0];
+    let scrollbar_area = main_chunks[1];
+
     let current = state.stack.last().unwrap();
     state.list_state.select(Some(state.selected));
-    let size = f.size();
     let block = create_main_block(current);
-    let list = create_list(current, block);
+    let list = create_list(current, block.clone());
     let help = create_help_paragraph();
 
     let shadow = Block::default()
@@ -246,19 +271,27 @@ fn draw_ui(f: &mut Frame, state: &mut TuiState) {
     let shadow_rect = Rect {
         x: 2,
         y: 2,
-        width: size.width.saturating_sub(4),
-        height: size.height.saturating_sub(4),
+        width: main_area.width.saturating_sub(4),
+        height: main_area.height.saturating_sub(4),
     };
     f.render_widget(shadow, shadow_rect);
-    f.render_stateful_widget(list, size, &mut state.list_state);
-    f.render_widget(
-        help,
-        Rect {
-            x: 2,
-            y: size.height - 2,
-            width: size.width - 4,
-            height: 1,
-        },
+    f.render_stateful_widget(list, list_area, &mut state.list_state);
+    f.render_widget(help, help_area);
+
+    state.scrollbar_state = state.scrollbar_state.content_length(state.items_len);
+
+    let scrollbar = Scrollbar::default()
+        .orientation(ratatui::widgets::ScrollbarOrientation::VerticalRight)
+        .begin_symbol(Some("↑"))
+        .end_symbol(Some("↓"));
+
+    f.render_stateful_widget(
+        scrollbar,
+        scrollbar_area.inner(&Margin {
+            vertical: 1,
+            horizontal: 0,
+        }),
+        &mut state.scrollbar_state,
     );
 }
 
@@ -268,6 +301,7 @@ fn handle_key_down(state: &mut TuiState) {
         state.selected += 1;
     }
     state.list_state.select(Some(state.selected));
+    state.scrollbar_state = state.scrollbar_state.position(state.selected);
 }
 
 fn handle_key_up(state: &mut TuiState) {
@@ -275,12 +309,14 @@ fn handle_key_up(state: &mut TuiState) {
         state.selected -= 1;
     }
     state.list_state.select(Some(state.selected));
+    state.scrollbar_state = state.scrollbar_state.position(state.selected);
 }
 
 fn handle_key_enter(state: &mut TuiState) {
     let current = state.stack.last().unwrap();
     if let Some((tag, _)) = current.children.get(state.selected) {
         let children = get_children_cached(&state.xml, Some(tag), &mut state.children_cache);
+        state.items_len = children.len();
         state.stack.push(Level {
             tag: Some(tag.clone()),
             children,
@@ -295,6 +331,7 @@ fn handle_key_backspace(state: &mut TuiState) {
         state.stack.pop();
         state.selected = 0;
         state.list_state.select(Some(state.selected));
+        state.items_len = state.stack.last().unwrap().children.len();
     }
 }
 
@@ -317,19 +354,23 @@ pub fn run_tui() -> io::Result<()> {
     let xml = std::str::from_utf8(&mmap).expect("Invalid UTF-8 XML").to_string();
 
     let root_tag = get_root_tag(&xml);
+    let children = match &root_tag {
+        Some(tag) => vec![(tag.clone(), None)],
+        None => vec![],
+    };
+    let items_len = children.len();
 
     let mut state = TuiState {
         stack: vec![Level {
             tag: None,
-            children: match &root_tag {
-                Some(tag) => vec![(tag.clone(), None)],
-                None => vec![],
-            },
+            children,
         }],
         selected: 0,
         list_state: ListState::default(),
         children_cache: HashMap::new(),
         xml,
+        scrollbar_state: ScrollbarState::default(),
+        items_len,
     };
 
     let mut terminal = setup_terminal()?;
