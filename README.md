@@ -1,6 +1,6 @@
 # xmz
 
-![CI](https://github.com/USERNAME/REPOSITORY/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/ioma8/xmz/actions/workflows/ci.yml/badge.svg)
 
 A high-performance, zero-allocation XML parser with a TUI for interactive traversal.
 
