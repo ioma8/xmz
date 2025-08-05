@@ -27,6 +27,8 @@ jobs:
     name: Build and Upload for ${{ matrix.os }}
     needs: create_release
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:

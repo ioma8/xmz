@@ -13,12 +13,14 @@ A high-performance, zero-allocation XML parser with a TUI for interactive traver
 
 ## Usage
 
+`xmz` expects an XML file path as its first argument. You can optionally enable TUI mode.
+
 ### TUI Mode
 
 To explore an XML file interactively, run:
 
 ```sh
-cargo run --release -- --tui
+cargo run --release -- <path/to/your/file.xml> --tui
 ```
 
 ### Stats Mode
@@ -26,13 +28,17 @@ cargo run --release -- --tui
 To see statistics about the XML file, run:
 
 ```sh
-cargo run --release
+cargo run --release -- <path/to/your/file.xml>
 ```
 
 ## Building
 
-To build the project, run:
+To build the project from source, run:
 
 ```sh
 cargo build --release
 ```
+
+## Download Binaries
+
+Pre-built binaries for Windows, macOS, and Linux are available on the [Releases page](https://github.com/ioma8/xmz/releases). Download the appropriate archive for your system, extract it, and run the `xmz` executable.
