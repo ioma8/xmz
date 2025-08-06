@@ -47,3 +47,6 @@ The binary is unsigned, so on macOS, you might need to run the following command
 ```sh
 xattr -r -d com.apple.quarantine xmz
 ```
+
+---
+<p align="center">Made with ❤️ in Rust</p>
