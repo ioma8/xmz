@@ -42,3 +42,8 @@ cargo build --release
 ## Download Binaries
 
 Pre-built binaries for Windows, macOS, and Linux are available on the [Releases page](https://github.com/ioma8/xmz/releases). Download the appropriate archive for your system, extract it, and run the `xmz` executable.
+
+The binary is unsigned, so on macOS, you might need to run the following command to allow the system to run it:
+```sh
+xattr -r -d com.apple.quarantine xmz
+```
