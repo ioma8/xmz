@@ -24,7 +24,7 @@ jobs:
           prerelease: false
 
   build_and_upload:
-    name: Build and Upload for ${{ matrix.os }}
+    name: Build and Upload for ${{ matrix.os }}-${{ matrix.arch }}
     needs: create_release
     runs-on: ${{ matrix.os }}
     permissions:
@@ -33,31 +33,48 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            asset_name: xmz-linux.tar.gz
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            asset_name: xmz-x86_64-linux.tar.gz
+            binary_name: xmz
+          - os: ubuntu-latest
+            arch: aarch64
+            target: aarch64-unknown-linux-gnu
+            asset_name: xmz-aarch64-linux.tar.gz
             binary_name: xmz
           - os: macos-latest
-            asset_name: xmz-macos.tar.gz
+            arch: x86_64
+            target: x86_64-apple-darwin
+            asset_name: xmz-x86_64-macos.tar.gz
+            binary_name: xmz
+          - os: macos-latest
+            arch: aarch64
+            target: aarch64-apple-darwin
+            asset_name: xmz-aarch64-macos.tar.gz
             binary_name: xmz
           - os: windows-latest
-            asset_name: xmz-windows.zip
+            arch: x86_64
+            target: x86_64-pc-windows-msvc
+            asset_name: xmz-x86_64-windows.zip
             binary_name: xmz.exe
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          target: ${{ matrix.target }}
           override: true
       - name: Build binary
-        run: cargo build --release --verbose
+        run: cargo build --release --target ${{ matrix.target }} --verbose
       - name: Package binary (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
-          tar -czvf ${{ matrix.asset_name }} -C target/release/ ${{ matrix.binary_name }}
+          tar -czvf ${{ matrix.asset_name }} -C target/${{ matrix.target }}/release/ ${{ matrix.binary_name }}
       - name: Package binary (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path target/release/${{ matrix.binary_name }} -DestinationPath ${{ matrix.asset_name }}
+          Compress-Archive -Path target/${{ matrix.target }}/release/${{ matrix.binary_name }} -DestinationPath ${{ matrix.asset_name }}
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
