@@ -1,4 +1,9 @@
 use crate::parser::{stream_xml, Token, Continue};
+use crossterm::{
+    execute,
+    style::{Color, Print, ResetColor, SetForegroundColor, Attribute, SetAttribute},
+};
+use std::io::stdout;
 
 const MAX_DEPTH: usize = 32;
 const MAX_UNIQUE_TAGS: usize = 128;
@@ -56,15 +61,15 @@ pub fn print_stats(xml: &str) {
     });
 
     let elapsed = start_time.elapsed();
-    println!("Processed {} tags in {:?}", tag_count, elapsed);
-    println!("Max depth: {}", max_depth);
-    println!("File size: {} bytes", xml.len());
-    println!(
-        "Processing speed: {:.2} MB/s",
-        xml.len() as f64 / elapsed.as_secs_f64() / 1_000_000.0
-    );
+    let mut stdout = stdout();
 
-    println!("\nElements and unique tag names per depth level:");
+    execute!(stdout, SetAttribute(Attribute::Bold), Print("--- XML Statistics ---\n"), ResetColor).unwrap();
+    execute!(stdout, Print("Processed "), SetForegroundColor(Color::Yellow), Print(tag_count), ResetColor, Print(" tags in "), SetForegroundColor(Color::Green), Print(format!("{:?}\n", elapsed)), ResetColor).unwrap();
+    execute!(stdout, Print("Max depth: "), SetForegroundColor(Color::Yellow), Print(max_depth), ResetColor, Print("\n")).unwrap();
+    execute!(stdout, Print("File size: "), SetForegroundColor(Color::Yellow), Print(xml.len()), ResetColor, Print(" bytes\n")).unwrap();
+    execute!(stdout, Print("Processing speed: "), SetForegroundColor(Color::Green), Print(format!("{:.2} MB/s\n", xml.len() as f64 / elapsed.as_secs_f64() / 1_000_000.0)), ResetColor).unwrap();
+
+    execute!(stdout, Print("\n"), SetAttribute(Attribute::Bold), Print("--- Elements and unique tag names per depth level ---\n"), ResetColor).unwrap();
     for level in 0..MAX_DEPTH {
         let count = elements_per_level[level];
         if count > 0 {
@@ -73,7 +78,7 @@ pub fn print_stats(xml: &str) {
             } else {
                 format!("Depth {}", level)
             };
-            println!("  {}: {} elements", level_name, count);
+            execute!(stdout, Print("  "), SetForegroundColor(Color::Cyan), Print(format!("{}: ", level_name)), ResetColor, SetForegroundColor(Color::Yellow), Print(count), ResetColor, Print(" elements\n")).unwrap();
             let tag_count = unique_tag_counts[level];
             if tag_count > 0 {
                 let mut tag_list: [&str; MAX_UNIQUE_TAGS] = [""; MAX_UNIQUE_TAGS];
@@ -85,7 +90,7 @@ pub fn print_stats(xml: &str) {
                     }
                 }
                 tag_list[..n].sort_unstable();
-                println!("    Unique tags: {}", tag_list[..n].join(", "));
+                execute!(stdout, Print("    Unique tags: "), SetForegroundColor(Color::Magenta), Print(format!("{}\n", tag_list[..n].join(", "))), ResetColor).unwrap();
             }
         }
     }
