@@ -27,7 +27,7 @@ A high-performance, zero-allocation XML parser with a TUI for interactive traver
 To explore an XML file interactively, run:
 
 ```sh
-cargo run --release -- <path/to/your/file.xml> --tui
+./xmz <path/to/your/file.xml> --tui
 ```
 
 ### Stats Mode
@@ -35,7 +35,7 @@ cargo run --release -- <path/to/your/file.xml> --tui
 To see statistics about the XML file, run:
 
 ```sh
-cargo run --release -- <path/to/your/file.xml>
+./xmz <path/to/your/file.xml>
 ```
 
 ## Building
