@@ -112,8 +112,8 @@ jobs:
       - name: Strip binary (cross builds)
         if: matrix.use_cross == true
         run: |
-          docker run --rm -v $PWD:/project -w /project \
-            rustembedded/cross:${{ matrix.target }} \
+          docker run --rm --platform linux/amd64 -v $PWD:/project -w /project \
+            ghcr.io/cross-rs/${{ matrix.target }}:latest \
             ${{ matrix.target }}-strip target/${{ matrix.target }}/release/${{ matrix.binary_name }}
       
       - name: Package binary (Linux/macOS)
