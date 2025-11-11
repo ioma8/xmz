@@ -105,9 +105,16 @@ jobs:
         if: matrix.use_cross == true
         run: cross build --release --locked --target ${{ matrix.target }} --verbose
       
-      - name: Strip binary (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Strip binary (native builds)
+        if: matrix.use_cross == false && runner.os != 'Windows'
         run: strip target/${{ matrix.target }}/release/${{ matrix.binary_name }}
+      
+      - name: Strip binary (cross builds)
+        if: matrix.use_cross == true
+        run: |
+          docker run --rm -v $PWD:/project -w /project \
+            rustembedded/cross:${{ matrix.target }} \
+            ${{ matrix.target }}-strip target/${{ matrix.target }}/release/${{ matrix.binary_name }}
       
       - name: Package binary (Linux/macOS)
         if: runner.os != 'Windows'
