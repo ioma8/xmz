@@ -34,28 +34,45 @@ jobs:
           - os: ubuntu-latest
             arch: x86_64
             target: x86_64-unknown-linux-gnu
-            asset_name: xmz-x86_64-linux.tar.gz
+            asset_name: xmz-x86_64-linux-gnu.tar.gz
             binary_name: xmz
+            use_cross: false
+          - os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-unknown-linux-musl
+            asset_name: xmz-x86_64-linux-musl.tar.gz
+            binary_name: xmz
+            use_cross: true
           - os: ubuntu-latest
             arch: aarch64
             target: aarch64-unknown-linux-gnu
-            asset_name: xmz-aarch64-linux.tar.gz
+            asset_name: xmz-aarch64-linux-gnu.tar.gz
             binary_name: xmz
+            use_cross: true
+          - os: ubuntu-latest
+            arch: aarch64
+            target: aarch64-unknown-linux-musl
+            asset_name: xmz-aarch64-linux-musl.tar.gz
+            binary_name: xmz
+            use_cross: true
           - os: macos-latest
             arch: x86_64
             target: x86_64-apple-darwin
             asset_name: xmz-x86_64-macos.tar.gz
             binary_name: xmz
+            use_cross: false
           - os: macos-latest
             arch: aarch64
             target: aarch64-apple-darwin
             asset_name: xmz-aarch64-macos.tar.gz
             binary_name: xmz
+            use_cross: false
           - os: windows-latest
             arch: x86_64
             target: x86_64-pc-windows-msvc
             asset_name: xmz-x86_64-windows.zip
             binary_name: xmz.exe
+            use_cross: false
     steps:
       - uses: actions/checkout@v4
       
@@ -76,17 +93,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.target }}-cargo-
       
-      - name: Install cross-compilation tools and configure linker
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          mkdir -p .cargo
-          echo '[target.aarch64-unknown-linux-gnu]' > .cargo/config.toml
-          echo 'linker = "aarch64-linux-gnu-gcc"' >> .cargo/config.toml
+      - name: Install cross
+        if: matrix.use_cross == true
+        run: cargo install cross --git https://github.com/cross-rs/cross
       
-      - name: Build binary
+      - name: Build binary (native)
+        if: matrix.use_cross == false
         run: cargo build --release --locked --target ${{ matrix.target }} --verbose
+      
+      - name: Build binary (cross)
+        if: matrix.use_cross == true
+        run: cross build --release --locked --target ${{ matrix.target }} --verbose
       
       - name: Strip binary (Linux/macOS)
         if: runner.os != 'Windows'
@@ -112,3 +129,29 @@ jobs:
           files: |
             ${{ matrix.asset_name }}
             ${{ matrix.asset_name }}.sha256
+  
+  create_checksums:
+    name: Create SHA256SUMS
+    needs: build_and_upload
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release assets
+        uses: robinraju/release-downloader@v1
+        with:
+          tag: v${{ github.run_number }}
+          fileName: "*.sha256"
+          out-file-path: "checksums"
+      
+      - name: Create SHA256SUMS file
+        run: |
+          cd checksums
+          cat *.sha256 > SHA256SUMS
+          cat SHA256SUMS
+      
+      - name: Upload SHA256SUMS
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          files: checksums/SHA256SUMS
