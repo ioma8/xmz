@@ -18,10 +18,10 @@ pub fn run_tui(xml: &str) -> io::Result<()> {
     loop {
         terminal.draw(|f| draw_ui(f, &mut state))?;
 
-        if event::poll(std::time::Duration::from_millis(200))? {
-            if !handle_input(event::read()?, &mut state) {
-                break;
-            }
+        if event::poll(std::time::Duration::from_millis(200))?
+            && !handle_input(event::read()?, &mut state)
+        {
+            break;
         }
     }
 

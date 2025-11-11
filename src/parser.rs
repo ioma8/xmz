@@ -71,10 +71,8 @@ where
                     if on_token(Token::StartTag(name)).is_break() {
                         return;
                     }
-                    if is_self_closing {
-                        if on_token(Token::EndTag(name)).is_break() {
-                            return;
-                        }
+                    if is_self_closing && on_token(Token::EndTag(name)).is_break() {
+                        return;
                     }
                     pos = end_pos + 1;
                 } else {

@@ -2,10 +2,10 @@ use super::state::TuiState;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 
 pub fn handle_input(event: Event, state: &mut TuiState) -> bool {
-    if let Event::Key(key_event) = event {
-        if key_event.kind == KeyEventKind::Press {
-            return handle_key_press(key_event, state);
-        }
+    if let Event::Key(key_event) = event
+        && key_event.kind == KeyEventKind::Press
+    {
+        return handle_key_press(key_event, state);
     }
     true
 }
