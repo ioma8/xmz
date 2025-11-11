@@ -57,7 +57,7 @@ pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
     );
 }
 
-fn create_main_block(current: &Level) -> Block {
+fn create_main_block(current: &'_ Level) -> Block<'_> {
     let n_children = current.children.len();
     let title = match &current.tag {
         Some(t) => format!(
