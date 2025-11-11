@@ -21,10 +21,20 @@ pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
     let list_area = main_chunks[0];
     let scrollbar_area = main_chunks[1];
 
+    // Ensure selected index is within the valid range before applying it to the list state.
+    let items_len = state.items_len;
+    if items_len == 0 {
+        state.selected = 0;
+    } else if state.selected >= items_len {
+        state.selected = items_len.saturating_sub(1);
+    }
     state.list_state.select(Some(state.selected));
+    // Clone the current level so we don't hold an immutable borrow across the mutable borrow
+    // of state.list_state that happens when rendering the stateful widget.
     let current_level = state.get_current_level().clone();
     let block = create_main_block(&current_level);
-    let list = create_list(&current_level, block.clone());
+    // Move the block into create_list instead of cloning it to avoid unnecessary allocations.
+    let list = create_list(&current_level, block);
     let help = create_help_paragraph();
 
     let shadow = Block::default()
