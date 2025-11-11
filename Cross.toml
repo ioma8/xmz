@@ -3,6 +3,11 @@ passthrough = [
     "RUST_BACKTRACE",
 ]
 
+[build]
+# Force cross to build build-dependencies in the container too
+# This prevents glibc version mismatches
+build-std = false
+
 [target.x86_64-unknown-linux-musl]
 image = "ghcr.io/cross-rs/x86_64-unknown-linux-musl:latest"
 

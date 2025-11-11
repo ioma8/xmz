@@ -43,18 +43,21 @@ jobs:
             asset_name: xmz-x86_64-linux-musl.tar.gz
             binary_name: xmz
             use_cross: true
+            strip_tool: x86_64-linux-musl-strip
           - os: ubuntu-latest
             arch: aarch64
             target: aarch64-unknown-linux-gnu
             asset_name: xmz-aarch64-linux-gnu.tar.gz
             binary_name: xmz
             use_cross: true
+            strip_tool: aarch64-linux-gnu-strip
           - os: ubuntu-latest
             arch: aarch64
             target: aarch64-unknown-linux-musl
             asset_name: xmz-aarch64-linux-musl.tar.gz
             binary_name: xmz
             use_cross: true
+            strip_tool: aarch64-linux-musl-strip
           - os: macos-latest
             arch: x86_64
             target: x86_64-apple-darwin
@@ -103,6 +106,8 @@ jobs:
       
       - name: Build binary (cross)
         if: matrix.use_cross == true
+        env:
+          CROSS_REMOTE: 1
         run: cross build --release --locked --target ${{ matrix.target }} --verbose
       
       - name: Strip binary (native builds)
@@ -114,7 +119,7 @@ jobs:
         run: |
           docker run --rm --platform linux/amd64 -v $PWD:/project -w /project \
             ghcr.io/cross-rs/${{ matrix.target }}:latest \
-            ${{ matrix.target }}-strip target/${{ matrix.target }}/release/${{ matrix.binary_name }}
+            ${{ matrix.strip_tool }} target/${{ matrix.target }}/release/${{ matrix.binary_name }}
       
       - name: Package binary (Linux/macOS)
         if: runner.os != 'Windows'
