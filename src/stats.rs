@@ -83,11 +83,9 @@ pub fn print_stats(xml: &str) {
             if tag_count > 0 {
                 let mut tag_list: [&str; MAX_UNIQUE_TAGS] = [""; MAX_UNIQUE_TAGS];
                 let mut n = 0;
-                for i in 0..tag_count {
-                    if let Some(tag) = unique_tags_per_level[level][i] {
-                        tag_list[n] = tag;
-                        n += 1;
-                    }
+                for tag in unique_tags_per_level[level].iter().take(tag_count).flatten() {
+                    tag_list[n] = tag;
+                    n += 1;
                 }
                 tag_list[..n].sort_unstable();
                 execute!(stdout, Print("    Unique tags: "), SetForegroundColor(Color::Magenta), Print(format!("{}\n", tag_list[..n].join(", "))), ResetColor).unwrap();
