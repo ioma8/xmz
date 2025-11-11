@@ -149,12 +149,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
       - name: Download release assets
-        uses: robinraju/release-downloader@v1
-        with:
-          tag: v${{ github.run_number }}
-          fileName: "*.sha256"
-          out-file-path: "checksums"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p checksums
+          gh release download v${{ github.run_number }} --pattern "*.sha256" --dir checksums
       
       - name: Create SHA256SUMS file
         run: |
