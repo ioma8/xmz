@@ -181,15 +181,15 @@ fn create_list<'a>(current: &Level<'a>, block: Block<'a>, _selected_index: usize
     let mut items: Vec<ListItem> = current
         .children
         .iter()
-        .map(|(tag, text, _, attrs_raw)| {
+        .map(|node| {
             let mut spans = vec![Span::styled(
-                *tag,
+                node.tag,
                 Style::default()
                     .fg(Color::Magenta)
                     .add_modifier(Modifier::BOLD),
             )];
 
-            let trimmed_attrs = attrs_raw.replace('\n', " ");
+            let trimmed_attrs = node.attributes_raw.replace('\n', " ");
             let trimmed_attrs = trimmed_attrs.trim();
             if !trimmed_attrs.is_empty() {
                 let display = if trimmed_attrs.len() > 40 {
@@ -201,10 +201,10 @@ fn create_list<'a>(current: &Level<'a>, block: Block<'a>, _selected_index: usize
                 spans.push(Span::styled(display, Style::default().fg(Color::DarkGray)));
             }
 
-            if let Some(text) = text {
+            if let Some(text) = node.text {
                 spans.push(Span::raw("  "));
                 spans.push(Span::styled(
-                    *text,
+                    text,
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::ITALIC),
