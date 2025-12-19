@@ -107,7 +107,7 @@ fn create_list<'a>(current: &Level<'a>, block: Block<'a>) -> List<'a> {
     let items: Vec<ListItem> = current
         .children
         .iter()
-        .map(|(tag, text)| {
+        .map(|(tag, text, _)| {
             if let Some(text) = text {
                 ListItem::new(Line::from(vec![
                     Span::styled(
