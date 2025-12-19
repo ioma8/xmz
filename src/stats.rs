@@ -20,7 +20,7 @@ pub fn print_stats(xml: &str) {
 
     stream_xml(xml, |token| {
         match token {
-            Token::StartTag(name) => {
+            Token::StartTag(name, _) => {
                 if depth < MAX_DEPTH {
                     elements_per_level[depth] += 1;
                     let tags = unsafe { unique_tags_per_level.get_unchecked_mut(depth) };

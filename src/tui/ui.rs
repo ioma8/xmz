@@ -32,8 +32,8 @@ pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
     
     // Extract data from level without holding borrow across the mutable operations
     let current_level = state.get_current_level();
-    let block = create_main_block(current_level);
-    let list = create_list(current_level, block);
+    let block = create_main_block(current_level, state.selected);
+    let list = create_list(current_level, block, state.selected);
     let help = create_help_paragraph();
 
     let shadow = Block::default()
@@ -64,21 +64,84 @@ pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
         }),
         &mut state.scrollbar_state,
     );
+
+    if state.show_info_popup {
+        if let Some((ref attrs, child_count)) = state.info_popup_data {
+            let area = centered_rect(60, 50, f.size());
+            f.render_widget(ratatui::widgets::Clear, area);
+
+            let mut lines = vec![
+                Line::from(vec![
+                    Span::styled("Children count: ", Style::default().fg(Color::Cyan)),
+                    Span::styled(child_count.to_string(), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                ]),
+                Line::from(""),
+                Line::from(Span::styled("Attributes:", Style::default().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED))),
+            ];
+
+            if attrs.is_empty() {
+                lines.push(Line::from(Span::styled("  (none)", Style::default().fg(Color::DarkGray))));
+            } else {
+                for (key, val) in attrs {
+                    lines.push(Line::from(vec![
+                        Span::raw("  "),
+                        Span::styled(*key, Style::default().fg(Color::Magenta)),
+                        Span::raw(" = "),
+                        Span::styled(*val, Style::default().fg(Color::Green)),
+                    ]));
+                }
+            }
+
+            let block = Block::default()
+                .title(" Element Details ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::White))
+                .bg(Color::Rgb(40, 40, 50));
+            
+            let paragraph = Paragraph::new(lines)
+                .block(block)
+                .wrap(ratatui::widgets::Wrap { trim: true });
+            
+            f.render_widget(paragraph, area);
+        }
+    }
 }
 
-fn create_main_block<'a>(current: &Level<'a>) -> Block<'a> {
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
+}
+
+fn create_main_block<'a>(current: &Level<'a>, selected_index: usize) -> Block<'a> {
     let n_children = current.children.len();
+    let current_pos = if n_children > 0 { selected_index + 1 } else { 0 };
+    
     let title = match &current.tag {
         Some(t) => format!(
-            "<{}>  [{} child{}]",
+            "<{}>  [{}/{}]",
             t,
-            n_children,
-            if n_children == 1 { "" } else { "ren" }
+            current_pos,
+            n_children
         ),
         None => format!(
-            "Root element  [{} child{}]",
-            n_children,
-            if n_children == 1 { "" } else { "ren" }
+            "Root element  [{}/{}]",
+            current_pos,
+            n_children
         ),
     };
     Block::default()
@@ -103,35 +166,53 @@ fn create_main_block<'a>(current: &Level<'a>) -> Block<'a> {
         .bg(Color::Rgb(30, 30, 40))
 }
 
-fn create_list<'a>(current: &Level<'a>, block: Block<'a>) -> List<'a> {
+fn create_list<'a>(current: &Level<'a>, block: Block<'a>, selected_index: usize) -> List<'a> {
     let items: Vec<ListItem> = current
         .children
         .iter()
-        .map(|(tag, text, _)| {
-            if let Some(text) = text {
-                ListItem::new(Line::from(vec![
-                    Span::styled(
-                        *tag,
-                        Style::default()
-                            .fg(Color::Rgb(255, 180, 255))
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw("  "),
-                    Span::styled(
-                        *text,
-                        Style::default()
-                            .fg(Color::Rgb(120, 255, 120))
-                            .add_modifier(Modifier::ITALIC),
-                    ),
-                ]))
-            } else {
-                ListItem::new(Span::styled(
+        .enumerate()
+        .map(|(i, (tag, text, _, attrs_raw))| {
+            let mut spans = vec![
+                Span::styled(
                     *tag,
                     Style::default()
-                        .fg(Color::Rgb(200, 200, 255))
+                        .fg(Color::Rgb(255, 180, 255))
                         .add_modifier(Modifier::BOLD),
-                ))
+                ),
+            ];
+
+            let trimmed_attrs = attrs_raw.replace('\n', " ");
+            let trimmed_attrs = trimmed_attrs.trim();
+            if !trimmed_attrs.is_empty() {
+                let display = if trimmed_attrs.len() > 40 {
+                    format!(" {}...", &trimmed_attrs[..40])
+                } else {
+                    format!(" {}", trimmed_attrs)
+                };
+                
+                let attr_color = if i == selected_index {
+                    Color::LightCyan 
+                } else {
+                    Color::DarkGray
+                };
+
+                spans.push(Span::styled(
+                    display,
+                    Style::default().fg(attr_color),
+                ));
             }
+
+            if let Some(text) = text {
+                spans.push(Span::raw("  "));
+                spans.push(Span::styled(
+                    *text,
+                    Style::default()
+                        .fg(Color::Rgb(120, 255, 120))
+                        .add_modifier(Modifier::ITALIC),
+                ));
+            }
+
+            ListItem::new(Line::from(spans))
         })
         .collect();
     List::new(items)
@@ -156,6 +237,8 @@ fn create_help_paragraph() -> Paragraph<'static> {
         Span::raw(" to go in, "),
         Span::styled("Backspace/←", key_style),
         Span::raw(" to go up, "),
+        Span::styled("Space", key_style),
+        Span::raw(" to show details, "),
         Span::styled("q", key_style),
         Span::raw(" to quit."),
     ];

@@ -17,6 +17,11 @@ fn handle_key_press(key_event: KeyEvent, state: &mut TuiState) -> bool {
         KeyCode::Up => state.go_up(),
         KeyCode::Enter | KeyCode::Right => state.enter(),
         KeyCode::Backspace | KeyCode::Left => state.back(),
+        KeyCode::PageUp => state.page_up(),
+        KeyCode::PageDown => state.page_down(),
+        KeyCode::Home => state.home(),
+        KeyCode::End => state.end(),
+        KeyCode::Char(' ') => state.toggle_info(),
         _ => {}
     }
     true

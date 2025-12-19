@@ -3,7 +3,7 @@ use std::ops::ControlFlow;
 
 #[derive(Debug)]
 pub enum Token<'a> {
-    StartTag(&'a str),
+    StartTag(&'a str, &'a str), // name, attributes
     EndTag(&'a str),
     Text(&'a str),
 }
@@ -68,7 +68,12 @@ where
                         name_end += 1;
                     }
                     let name = unsafe { xml.get_unchecked(start..name_end) };
-                    if on_token(Token::StartTag(name)).is_break() {
+                    
+                    let attrs_start = name_end;
+                    let attrs_end = if is_self_closing { end_pos - 1 } else { end_pos };
+                    let attrs = unsafe { xml.get_unchecked(attrs_start..attrs_end) };
+
+                    if on_token(Token::StartTag(name, attrs)).is_break() {
                         return;
                     }
                     if is_self_closing && on_token(Token::EndTag(name)).is_break() {
@@ -101,4 +106,93 @@ where
             pos = end_pos;
         }
     }
+}
+
+pub fn extract_attributes(xml: &str, mut offset: usize) -> Vec<(&str, &str)> {
+    let mut attrs = Vec::new();
+    let bytes = xml.as_bytes();
+    let len = bytes.len();
+
+    // Skip '<'
+    if offset < len && bytes[offset] == b'<' {
+        offset += 1;
+    } else {
+        return attrs;
+    }
+
+    // Skip tag name
+    while offset < len {
+        let b = bytes[offset];
+        if b.is_ascii_whitespace() || b == b'>' || b == b'/' {
+            break;
+        }
+        offset += 1;
+    }
+
+    loop {
+        // Skip whitespace
+        while offset < len && bytes[offset].is_ascii_whitespace() {
+            offset += 1;
+        }
+
+        if offset >= len || bytes[offset] == b'>' || bytes[offset] == b'/' {
+            break;
+        }
+
+        // Parse key
+        let key_start = offset;
+        while offset < len {
+            let b = bytes[offset];
+            if b == b'=' || b.is_ascii_whitespace() || b == b'>' || b == b'/' {
+                break;
+            }
+            offset += 1;
+        }
+        let key = &xml[key_start..offset];
+
+        // Skip whitespace before '='
+        while offset < len && bytes[offset].is_ascii_whitespace() {
+            offset += 1;
+        }
+
+        if offset < len && bytes[offset] == b'=' {
+            offset += 1; // Skip '='
+
+            // Skip whitespace after '='
+            while offset < len && bytes[offset].is_ascii_whitespace() {
+                offset += 1;
+            }
+
+            // Parse value
+            if offset < len {
+                let quote = bytes[offset];
+                if quote == b'"' || quote == b'\'' {
+                    offset += 1;
+                    let val_start = offset;
+                    while offset < len && bytes[offset] != quote {
+                        offset += 1;
+                    }
+                    if offset < len {
+                        attrs.push((key, &xml[val_start..offset]));
+                        offset += 1; // Skip closing quote
+                    }
+                } else {
+                    // Unquoted value (shouldn't happen in valid XML but handle anyway)
+                    let val_start = offset;
+                    while offset < len {
+                        let b = bytes[offset];
+                        if b.is_ascii_whitespace() || b == b'>' || b == b'/' {
+                            break;
+                        }
+                        offset += 1;
+                    }
+                    attrs.push((key, &xml[val_start..offset]));
+                }
+            }
+        } else {
+            // Attribute without value or malformed? Skip it.
+             offset += 1;
+        }
+    }
+    attrs
 }
