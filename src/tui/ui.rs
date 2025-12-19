@@ -29,12 +29,11 @@ pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
         state.selected = items_len.saturating_sub(1);
     }
     state.list_state.select(Some(state.selected));
-    // Clone the current level so we don't hold an immutable borrow across the mutable borrow
-    // of state.list_state that happens when rendering the stateful widget.
-    let current_level = state.get_current_level().clone();
-    let block = create_main_block(&current_level);
-    // Move the block into create_list instead of cloning it to avoid unnecessary allocations.
-    let list = create_list(&current_level, block);
+    
+    // Extract data from level without holding borrow across the mutable operations
+    let current_level = state.get_current_level();
+    let block = create_main_block(current_level);
+    let list = create_list(current_level, block);
     let help = create_help_paragraph();
 
     let shadow = Block::default()
@@ -67,7 +66,7 @@ pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
     );
 }
 
-fn create_main_block(current: &'_ Level) -> Block<'_> {
+fn create_main_block<'a>(current: &Level<'a>) -> Block<'a> {
     let n_children = current.children.len();
     let title = match &current.tag {
         Some(t) => format!(
@@ -104,7 +103,7 @@ fn create_main_block(current: &'_ Level) -> Block<'_> {
         .bg(Color::Rgb(30, 30, 40))
 }
 
-fn create_list<'a>(current: &'a Level, block: Block<'a>) -> List<'a> {
+fn create_list<'a>(current: &Level<'a>, block: Block<'a>) -> List<'a> {
     let items: Vec<ListItem> = current
         .children
         .iter()
@@ -112,14 +111,14 @@ fn create_list<'a>(current: &'a Level, block: Block<'a>) -> List<'a> {
             if let Some(text) = text {
                 ListItem::new(Line::from(vec![
                     Span::styled(
-                        tag,
+                        *tag,
                         Style::default()
                             .fg(Color::Rgb(255, 180, 255))
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::raw("  "),
                     Span::styled(
-                        text,
+                        *text,
                         Style::default()
                             .fg(Color::Rgb(120, 255, 120))
                             .add_modifier(Modifier::ITALIC),
@@ -127,7 +126,7 @@ fn create_list<'a>(current: &'a Level, block: Block<'a>) -> List<'a> {
                 ]))
             } else {
                 ListItem::new(Span::styled(
-                    tag,
+                    *tag,
                     Style::default()
                         .fg(Color::Rgb(200, 200, 255))
                         .add_modifier(Modifier::BOLD),
