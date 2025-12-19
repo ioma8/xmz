@@ -25,11 +25,14 @@ pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
     let items_len = state.items_len;
     if items_len == 0 {
         state.selected = 0;
-    } else if state.selected >= items_len {
-        state.selected = items_len.saturating_sub(1);
+        state.list_state.select(None);
+    } else {
+        if state.selected >= items_len {
+            state.selected = items_len.saturating_sub(1);
+        }
+        state.list_state.select(Some(state.selected));
     }
-    state.list_state.select(Some(state.selected));
-    
+
     // Extract data from level without holding borrow across the mutable operations
     let current_level = state.get_current_level();
     let block = create_main_block(current_level, state.selected);
@@ -73,14 +76,27 @@ pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
             let mut lines = vec![
                 Line::from(vec![
                     Span::styled("Children count: ", Style::default().fg(Color::Cyan)),
-                    Span::styled(child_count.to_string(), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                    Span::styled(
+                        child_count.to_string(),
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
                 ]),
                 Line::from(""),
-                Line::from(Span::styled("Attributes:", Style::default().fg(Color::Cyan).add_modifier(Modifier::UNDERLINED))),
+                Line::from(Span::styled(
+                    "Attributes:",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::UNDERLINED),
+                )),
             ];
 
             if attrs.is_empty() {
-                lines.push(Line::from(Span::styled("  (none)", Style::default().fg(Color::DarkGray))));
+                lines.push(Line::from(Span::styled(
+                    "  (none)",
+                    Style::default().fg(Color::DarkGray),
+                )));
             } else {
                 for (key, val) in attrs {
                     lines.push(Line::from(vec![
@@ -97,11 +113,11 @@ pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::White))
                 .bg(Color::Rgb(40, 40, 50));
-            
+
             let paragraph = Paragraph::new(lines)
                 .block(block)
                 .wrap(ratatui::widgets::Wrap { trim: true });
-            
+
             f.render_widget(paragraph, area);
         }
     }
@@ -129,20 +145,15 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 
 fn create_main_block<'a>(current: &Level<'a>, selected_index: usize) -> Block<'a> {
     let n_children = current.children.len();
-    let current_pos = if n_children > 0 { selected_index + 1 } else { 0 };
-    
+    let current_pos = if n_children > 0 {
+        selected_index + 1
+    } else {
+        0
+    };
+
     let title = match &current.tag {
-        Some(t) => format!(
-            "<{}>  [{}/{}]",
-            t,
-            current_pos,
-            n_children
-        ),
-        None => format!(
-            "Root element  [{}/{}]",
-            current_pos,
-            n_children
-        ),
+        Some(t) => format!("<{}>  [{}/{}]", t, current_pos, n_children),
+        None => format!("Root element  [{}/{}]", current_pos, n_children),
     };
     Block::default()
         .title(Line::from(vec![
@@ -166,20 +177,17 @@ fn create_main_block<'a>(current: &Level<'a>, selected_index: usize) -> Block<'a
         .bg(Color::Rgb(30, 30, 40))
 }
 
-fn create_list<'a>(current: &Level<'a>, block: Block<'a>, selected_index: usize) -> List<'a> {
-    let items: Vec<ListItem> = current
+fn create_list<'a>(current: &Level<'a>, block: Block<'a>, _selected_index: usize) -> List<'a> {
+    let mut items: Vec<ListItem> = current
         .children
         .iter()
-        .enumerate()
-        .map(|(i, (tag, text, _, attrs_raw))| {
-            let mut spans = vec![
-                Span::styled(
-                    *tag,
-                    Style::default()
-                        .fg(Color::Rgb(255, 180, 255))
-                        .add_modifier(Modifier::BOLD),
-                ),
-            ];
+        .map(|(tag, text, _, attrs_raw)| {
+            let mut spans = vec![Span::styled(
+                *tag,
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::BOLD),
+            )];
 
             let trimmed_attrs = attrs_raw.replace('\n', " ");
             let trimmed_attrs = trimmed_attrs.trim();
@@ -189,17 +197,8 @@ fn create_list<'a>(current: &Level<'a>, block: Block<'a>, selected_index: usize)
                 } else {
                     format!(" {}", trimmed_attrs)
                 };
-                
-                let attr_color = if i == selected_index {
-                    Color::LightCyan 
-                } else {
-                    Color::DarkGray
-                };
 
-                spans.push(Span::styled(
-                    display,
-                    Style::default().fg(attr_color),
-                ));
+                spans.push(Span::styled(display, Style::default().fg(Color::DarkGray)));
             }
 
             if let Some(text) = text {
@@ -207,7 +206,7 @@ fn create_list<'a>(current: &Level<'a>, block: Block<'a>, selected_index: usize)
                 spans.push(Span::styled(
                     *text,
                     Style::default()
-                        .fg(Color::Rgb(120, 255, 120))
+                        .fg(Color::Cyan)
                         .add_modifier(Modifier::ITALIC),
                 ));
             }
@@ -215,20 +214,36 @@ fn create_list<'a>(current: &Level<'a>, block: Block<'a>, selected_index: usize)
             ListItem::new(Line::from(spans))
         })
         .collect();
+
+    if items.is_empty() {
+        items.push(ListItem::new(Span::styled(
+            "(No children)",
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::ITALIC),
+        )));
+    }
+
     List::new(items)
         .block(block)
-        .highlight_symbol("→ ")
+        .highlight_symbol(if current.children.is_empty() {
+            ""
+        } else {
+            "→ "
+        })
         .highlight_style(
             Style::default()
-                .fg(Color::Yellow)
-                .bg(Color::Rgb(40, 40, 60))
-                .add_modifier(Modifier::BOLD | Modifier::REVERSED),
+                .bg(Color::Yellow)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD),
         )
         .bg(Color::Rgb(30, 30, 40))
 }
 
 fn create_help_paragraph() -> Paragraph<'static> {
-    let key_style = Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+    let key_style = Style::default()
+        .fg(Color::Cyan)
+        .add_modifier(Modifier::BOLD);
     let help_spans = vec![
         Span::raw("Use "),
         Span::styled("↑/↓", key_style),
@@ -244,6 +259,5 @@ fn create_help_paragraph() -> Paragraph<'static> {
     ];
     let help_line = Line::from(help_spans).alignment(Alignment::Center);
 
-    Paragraph::new(help_line)
-        .block(Block::default().borders(Borders::NONE))
+    Paragraph::new(help_line).block(Block::default().borders(Borders::NONE))
 }
